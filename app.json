@@ -16,12 +16,12 @@
       "bundler": "metro"
     },
     "plugins": [
-        [
-          "expo-router",
-          {
-            "origin": "https://n"
-          }
-        ],
+      [
+        "expo-router",
+        {
+          "origin": "https://n"
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "@react-native-google-signin/google-signin",
@@ -33,6 +33,14 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {
+        "origin": "https://n"
+      },
+      "eas": {
+        "projectId": "ba4bb20b-8304-40aa-aafd-976ab7410321"
+      }
+    }
   }
 }

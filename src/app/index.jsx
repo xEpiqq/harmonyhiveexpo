@@ -6,6 +6,8 @@ import Entypo from '@expo/vector-icons/Entypo';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import 'expo-dev-client';
+import auth from '@react-native-firebase/auth';
+import GameScreen from './GameScreen';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,6 +19,30 @@ export default function Page() {
     }
     prepare();
   }, []);
+
+  const [initializing, setInitializing] = useState(true);
+  const [user, setUser] = useState();
+  const [isLoading, setIsLoading ] = useState(true);
+
+  // Handle user state changes
+  function onAuthStateChanged(user) {
+    setUser(user);
+    if (initializing) setInitializing(false);
+  }
+
+  useEffect(() => {
+    const subscriber = auth().onAuthStateChanged(onAuthStateChanged);
+    return subscriber;
+  }, []);
+
+  if (initializing) return null
+
+
+  if (user) {
+    return (
+      <GameScreen user={user}/>
+    )
+  }
 
   return (
     <View className="flex-1">

@@ -7,6 +7,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import firestore from '@react-native-firebase/firestore';
 import {NavigationContainer} from '@react-navigation/native';
 
+
 GoogleSignin.configure({
   webClientId: '41274838584-680c8sgq16fojgeq7nla5j6foioqq46p.apps.googleusercontent.com',
 });
@@ -190,28 +191,33 @@ function Starter() {
 //     }
 //   }
 
-// async function justGoogleSignin() {
-//   try {
-//     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-//     const { idToken } = await GoogleSignin.signIn();
-//     const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-//     const userCredential = await auth().signInWithCredential(googleCredential);
+async function justGoogleSignin() {
+  try {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const { idToken } = await GoogleSignin.signIn();
+    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+    const userCredential = await auth().signInWithCredential(googleCredential);
 
-//     // Check if the user document already exists in Firestore.
-//     const userDocRef = firestore().collection('users').doc(userCredential.user.uid);
-//     const docSnapshot = await userDocRef.get();
+    // Check if the user document already exists in Firestore.
+    const userDocRef = firestore().collection('users').doc(userCredential.user.uid);
+    const docSnapshot = await userDocRef.get();
 
-//     if (!docSnapshot.exists) {
-//       await auth().signOut();
-//       console.log('Signed out user because they havent created an account yet!');
-//     }
+    if (!docSnapshot.exists) {
+      await auth().signOut();
+      console.log('Signed out user because they havent created an account yet!');
+    }
 
-//     return userCredential;
-//   } catch (error) {
-//     console.error('Google Sign-In Error: ', error);
-//     throw new Error(error);
-//   }
-// }
+    console.log(userCredential.user.uid);
+    return userCredential;
+  } catch (error) {
+    console.error('Google Sign-In Error: ', error);
+    throw new Error(error);
+  }
+}
+
+function signInWithGoogle() {
+  console.log("bruh")
+}
 
 function joinNewChoir() {
   console.log('Joining new choir');
@@ -634,7 +640,7 @@ function joinNewChoir() {
                     <Text className='text-[#0266FF] text-center font-bold text-lg flex items-center justify-center'>FACEBOOK</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity className='mt-4 gap-x-1 h-12 flex flex-row justify-center items-center border flex-1 rounded-xl border-b-4 bg-white border-slate-300' onPress={signInWithGoogle}>
+                <TouchableOpacity className='mt-4 gap-x-1 h-12 flex flex-row justify-center items-center border flex-1 rounded-xl border-b-4 bg-white border-slate-300' onPress={justGoogleSignin}>
                     <Image className='h-6 w-6' source={require('../../public/google.png')}/>
                     <Text className='text-gray-500 text-center font-bold text-lg flex items-center justify-center'>GOOGLE</Text>
                 </TouchableOpacity>
