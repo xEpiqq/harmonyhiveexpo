@@ -2,11 +2,11 @@ import React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, StatusBar, Animated, SafeAreaView, StyleSheet } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
-// import { GestureHandlerRootView, ScrollView as GestureScrollView } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 // import ChatScreen from './ChatScreen';
 // import AudioPlayer from './components/AudioPlayer';
 import storage from '@react-native-firebase/storage';
-//  import Pdf from 'react-native-pdf';
+ import Pdf from 'react-native-pdf';
 
 
 const GameScreen = ({ user }) => {
@@ -158,6 +158,24 @@ const GameScreen = ({ user }) => {
 
     const pdf_source = {uri:'https://firebasestorage.googleapis.com/v0/b/harmonyhive-b4705.appspot.com/o/TUnrM8z359eWvkV6xnFY%2Fsongs%2Fh45A6eEBGSQ0So6MpfQp%2Fsheet-music.pdf?alt=media&token=c59c4ef9-0bf5-4f1f-8fcc-36ce4f5639a2',cache:true};
 
+    const cherry_array = [
+      '../../public/cherryblossom.png',
+      '../../public/cherryblossom2.png',
+      '../../public/cherryblossom3.png',
+      '../../public/cherryblossom4.png',
+      '../../public/cherryblossom5.png',
+      '../../public/cherryblossom6.png',
+      '../../public/cherryblossom7.png',
+      '../../public/cherryblossom8.png',
+      '../../public/cherryblossom9.png',
+      '../../public/cherryblossom10.png',
+      '../../public/cherryblossom11.png',
+      '../../public/cherryblossom12.png',
+      '../../public/cherryblossom13.png',
+      '../../public/cherryblossom14.png',
+      '../../public/cherryblossom15.png'
+    ];
+
 
     if (isLoading) {
       return (
@@ -204,19 +222,19 @@ const GameScreen = ({ user }) => {
         </View>
   
           {musicSelected && selectedSong ? (
-              // <GestureHandlerRootView className="flex-1 bg-emerald-200">
+              <GestureHandlerRootView className="flex-1">
 
-              <View className="flex-1 bg-emerald-200">
-              <View className="w-screen h-screen flex items-center justify-center -mt-36">
+              <View className="flex-1 bg-black">
+              <View className="w-screen h-screen flex items-center justify-center">
                 <Text className="text-2xl mb-4">{selectedSong.name}</Text>
-{/*   
+  
                 <GestureScrollView
-        horizontal={true}
-        pagingEnabled={true}
-        showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ flexGrow: 1 }}
-      > */}
+                  horizontal={true}
+                  pagingEnabled={true}
+                  showsHorizontalScrollIndicator={false}
+                  scrollEventThrottle={16}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                >
 
                 {selectedSong && selectedSong.files && selectedSong.files.map((file, index) => (
                   <View
@@ -229,53 +247,53 @@ const GameScreen = ({ user }) => {
                       url={file.downloadURL} // Pass the download URL directly
                     /> */}
 
-<View key={`${file.name}-${index}_view`} className="flex-1 w-screen h-screen">
+                    <View  className="flex-1 w-screen h-screen">
 
-                  <Pdf
-                    className="w-full h-full flex-1"
-                    key={`${file.name}-${index}_pdf`}
-                    source={{ uri: file.downloadURL }}
+                    <Pdf
+                      className="w-full h-full flex-1"
+                      key={`${file.name}-${index}_pdf`}
+                      source={pdf_source}
 
-                    trustAllCerts={false}
-                    onLoadComplete={(numberOfPages,filePath)=>{
-                        console.log(`Number of pages: ${numberOfPages}`);
-                    }}
-                    onPageChanged={(page,numberOfPages)=>{
-                        console.log(`Current page: ${page}`);
-                    }}
-                    onError={(error)=>{
-                        console.log(error);
-                    }}
-                    onPressLink={(uri)=>{
-                        console.log(`Link pressed: ${uri}`);
-                    }}
-                    />
-                </View>
+                      trustAllCerts={false}
+                      onLoadComplete={(numberOfPages,filePath)=>{
+                          console.log(`Number of pages: ${numberOfPages}`);
+                      }}
+                      onPageChanged={(page,numberOfPages)=>{
+                          console.log(`Current page: ${page}`);
+                      }}
+                      onError={(error)=>{
+                          console.log(error);
+                      }}
+                      onPressLink={(uri)=>{
+                          console.log(`Link pressed: ${uri}`);
+                      }}
+                      />
+                    </View>
+
 
                     <TouchableOpacity
                       onPress={() => console.log(file.downloadURL)}
                       className="mt-4 bg-blue-500 text-white w-10 h-10"
                     />
 
-                  <TouchableOpacity onPress={() => console.log(file.type)} className="h-10 w-10 mt-4 bg-emerald-500" />
-
                   </View>
                 ))}
-        {/* </GestureScrollView> */}
+                </GestureScrollView>
 
                 <TouchableOpacity onPress={handleBackToSongs} className="mt-4 bg-blue-500 text-white p-2 rounded">
                   <Text>Back to Songs</Text>
                 </TouchableOpacity>
               </View>
               </View>
-              // </GestureHandlerRootView>
-
+              </GestureHandlerRootView>
         
           ) : (
   
           <>
-              {/* <GestureHandlerRootView className="flex-1 bg-white"> */}
-                {/* <GestureScrollView
+              <GestureHandlerRootView className="flex-1 bg-white">
+                <Text className='bg-white font-thin'>Stats~</Text>
+                <Text className='bg-white font-thin'>Last Opened: May 5th</Text>
+                <GestureScrollView
                   className="flex"
                   horizontal={true}
                   pagingEnabled={true}
@@ -283,32 +301,38 @@ const GameScreen = ({ user }) => {
                   onScroll={handleScroll}
                   scrollEventThrottle={16}
                   contentContainerStyle={{ flexGrow: 1 }}
-                > */}
+                >
                 
                   {songs.map((song, index) => (
+
+
                     <View key={song.songId} className="w-screen h-screen flex items-center justify-center bg-white -mt-36">
                       <TouchableOpacity
                       onPress={() => handleSelectSong(song)}>
+
+                      <View className='relative flex items-center justify-center'>
+
+                          <Image
+                            source={require('../../public/cherryblossom.png')}
+                            className='absolute w-screen h-16 -z-10'
+                          />
+
                         <Animated.Image
                           source={require('../../public/musicdisk.png')}
                           style={{ width: 120, height: 120, transform: [{ rotate: spin }] }}
                         />
-                        <Text className="text-2xl">{song.name}</Text>
+
+                      </View>
+  
+                        <Text className="text-center font-bold mt-5 text-5xl">{song.name.toUpperCase()}</Text>
                       </TouchableOpacity>
                     </View>
                   ))}
   
-                  <View className="w-screen h-screen flex items-center justify-center">
-                    <Text className="text-2xl">Page 2</Text>
-                  </View>
-                  <View className="w-screen h-screen flex items-center justify-center">
-                    <Text className="text-2xl">Page 3</Text>
-                  </View>
-                {/* </GestureScrollView> */}
-              {/* </GestureHandlerRootView> */}
+                </GestureScrollView>
+              </GestureHandlerRootView>
   
-  
-              <View className="flex-row justify-center p-4 bg-white">
+              <View className="flex-row justify-center p-4 -mt-28">
                 {songs.map((_, index) => (
                   <View
                     key={index}

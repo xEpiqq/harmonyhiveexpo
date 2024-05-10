@@ -1,5 +1,10 @@
 {
   "expo": {
+    "splash": {
+      "image": "./public/launch_screen.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "android": {
       "googleServicesFile": "./google-services.json",
       "package": "com.xepiq.harmonyhive"
