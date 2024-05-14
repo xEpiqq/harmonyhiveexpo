@@ -40,6 +40,8 @@ export default function Page() {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState();
   const [isLoading, setIsLoading ] = useState(true);
+  const [showBottomNav, setShowBottomNav] = useState(true);
+
 
   // Handle user state changes
   function onAuthStateChanged(user) {
@@ -55,45 +57,54 @@ export default function Page() {
   if (initializing) return null
 
   return (
-    <SafeAreaProvider>
-        {!user ? (
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen
-              name="Starter"
-              component={Starter}
-              options={{ headerShown: false }}
-            />
-          </Stack.Navigator>
-        ) : (
-          <Tab.Navigator
-            screenOptions={({ route }) => ({
-              headerShown: false,
-              tabBarActiveTintColor: 'blue',
-              tabBarInactiveTintColor: 'gray',
-              tabBarIcon: ({ color, size }) => {
-                let iconSource;
-                if (route.name === 'Game') {
-                  iconSource = require('../../public/duo.png');
-                } else if (route.name === 'Chat') {
-                  iconSource = require('../../public/chaticon.png');
-                } else if (route.name === 'Profile') {
-                  iconSource = require('../../public/1.png');
-                }
-                return <Image source={iconSource} style={{ width: size, height: size, tintColor: color }} />;
-              },
-            })}
-          >
-            <Tab.Screen name="Game" >
-              {props => <GameScreen {...props} user={user} />}
-            </Tab.Screen>
-            <Tab.Screen name="Profile">
-              {props => <Profile {...props} user={user} />}
-            </Tab.Screen>
-            <Tab.Screen name="Chat" options={{ tabBarStyle: { display: 'none' }, }} >
-              {props => <ChatScreen {...props} onBack={() => props.navigation.goBack()} user={user}  />}
-            </Tab.Screen>
-          </Tab.Navigator>
-        )}
-    </SafeAreaProvider>
+<SafeAreaProvider>
+  {!user ? (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen
+        name="Starter"
+        component={Starter}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  ) : (
+    <>
+      {isLoading && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'white' }}>
+          <Image source={require('../../public/loadingscreen.png')} style={{ width: '100%', height: '100%' }} />
+        </View>
+      )}
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarActiveTintColor: 'blue',
+          tabBarInactiveTintColor: 'gray',
+          tabBarIcon: ({ color, size }) => {
+            let iconSource;
+            if (route.name === 'Game') {
+              iconSource = require('../../public/duo.png');
+            } else if (route.name === 'Chat') {
+              iconSource = require('../../public/chaticon.png');
+            } else if (route.name === 'Profile') {
+              iconSource = require('../../public/1.png');
+            }
+            return <Image source={iconSource} style={{ width: size, height: size, tintColor: color }} />;
+          },
+          tabBarStyle: showBottomNav ? null : { display: 'none' },
+        })}
+      >
+        <Tab.Screen name="Game">
+          {props => <GameScreen {...props} user={user} setIsLoading={setIsLoading} setShowBottomNav={setShowBottomNav}/>}
+        </Tab.Screen>
+        <Tab.Screen name="Profile">
+          {props => <Profile {...props} user={user} />}
+        </Tab.Screen>
+        <Tab.Screen name="Chat" options={{ tabBarStyle: { display: 'none' }, }} >
+          {props => <ChatScreen {...props} onBack={() => props.navigation.goBack()} user={user}  />}
+        </Tab.Screen>
+      </Tab.Navigator>
+    </>
+  )}
+</SafeAreaProvider>
+    
   );
 }

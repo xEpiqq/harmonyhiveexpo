@@ -1,15 +1,79 @@
 import React from 'react';
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, StatusBar, Animated, SafeAreaView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StatusBar, Animated, SafeAreaView, StyleSheet, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { GestureHandlerRootView, ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 // import ChatScreen from './ChatScreen';
-// import AudioPlayer from './components/AudioPlayer';
+import AudioPlayer from './components/AudioPlayer';
 import storage from '@react-native-firebase/storage';
- import Pdf from 'react-native-pdf';
+import { PinchGestureHandler, State, PanGestureHandler } from 'react-native-gesture-handler';
+import { createRef } from 'react';
+import { Dimensions } from 'react-native';
+
+const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
+
+  /////////////////////
+  //////////
+  ///////////////
+  ///////////////
+
+  const [panEnabled, setPanEnabled] = useState(false);
 
 
-const GameScreen = ({ user }) => {
+
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const pinchRef = createRef();
+  const panRef = createRef();
+
+  const onPinchEvent = Animated.event([{
+    nativeEvent: { scale }
+  }],
+    { useNativeDriver: true });
+
+  const onPanEvent = Animated.event([{
+    nativeEvent: {
+      translationX: translateX,
+      translationY: translateY
+    }
+  }],
+    { useNativeDriver: true });
+
+  const handlePinchStateChange = ({ nativeEvent }) => {
+    // enabled pan only after pinch-zoom
+    if (nativeEvent.state === State.ACTIVE) {
+      setPanEnabled(true);
+    }
+
+    // when scale < 1, reset scale back to original (1)
+    const nScale = nativeEvent.scale;
+    if (nativeEvent.state === State.END) {
+      if (nScale < 1) {
+        Animated.spring(scale, {
+          toValue: 1,
+          useNativeDriver: true
+        }).start();
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true
+        }).start();
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true
+        }).start();
+
+        setPanEnabled(false);
+      }
+    }
+  };
+
+  ////////////
+  //////////
+  ////////////
+  ///////////
+
 
     const [musicSelected, setMusicSelected] = useState(false);
     const [songs, setSongs] = useState([]);
@@ -22,8 +86,7 @@ const GameScreen = ({ user }) => {
     const [chatScreen, setChatScreen] = useState(false);
     const [profileScreen, setProfileScreen] = useState(false);
     const [choirId, setChoirId] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-
+    const [zoomScale, setZoomScale] = useState(1);
 
     function goToChat () {
       setChatScreen(true);
@@ -34,6 +97,7 @@ const GameScreen = ({ user }) => {
     const handleSelectSong = song => {
       setSelectedSong(song);
       setMusicSelected(true);
+      setShowBottomNav(false)
       // Optionally stop the current player if any
       if (player) {
         player.pause();
@@ -45,6 +109,8 @@ const GameScreen = ({ user }) => {
       let userSubscriberUnsubscribe = () => {};
       let choirSubscriberUnsubscribe = () => {};
       
+      setIsLoading(true);
+
       // Subscribe to user data to get the selected choir
       const userSubscriber = firestore()
         .collection('users')
@@ -75,12 +141,14 @@ const GameScreen = ({ user }) => {
                     }));
                     setSongs(songsData);
                     console.log(songsData);
+                    setIsLoading(false)
                   });
                 
                 choirSubscriberUnsubscribe = choirSubscriber; // Store unsubscribe function for cleanup
                 setIsLoading(false)
               } else {
                 setChoirName('No choir found');
+                setIsLoading(false)
               }
             }).catch(error => {
               console.error("Error fetching choir details:", error);
@@ -128,6 +196,7 @@ const GameScreen = ({ user }) => {
     const handleBackToSongs = () => {
       setMusicSelected(false);
       setSelectedSong(null);
+      setShowBottomNav(true)
     };
 
     async function getDownloadLink(url) {
@@ -176,13 +245,6 @@ const GameScreen = ({ user }) => {
       '../../public/cherryblossom15.png'
     ];
 
-
-    if (isLoading) {
-      return (
-        <Image source={require('../../public/loadingscreen.png')} className="h-screen w-screen" />
-      );
-    }
-  
     return (
       <View className="flex-1">
   
@@ -215,18 +277,21 @@ const GameScreen = ({ user }) => {
             <Image source={require('../../public/duo.png')} className="h-6 w-6" />
           </View>
         </View>
-  
+          
+        {!musicSelected && !selectedSong && (
+                  <View className="flex-row p-4 bg-[#FFCE00] flex justify-center border-b border-[#ddb516] ">
+                  <Text className="text-white font-bold">SONG: {songs.length > 0 && currentPage < songs.length ? songs[currentPage].name.toUpperCase() : 'LOADING...'}</Text>
+                </View>
+        ) }
         {/* Top Bar */}
-        <View className="flex-row p-4 bg-[#FFCE00] flex justify-center border-b border-[#ddb516] ">
-          <Text className="text-white font-bold">SONG: {songs.length > 0 && currentPage < songs.length ? songs[currentPage].name.toUpperCase() : 'LOADING...'}</Text>
-        </View>
+
   
           {musicSelected && selectedSong ? (
               <GestureHandlerRootView className="flex-1">
 
               <View className="flex-1 bg-black">
               <View className="w-screen h-screen flex items-center justify-center">
-                <Text className="text-2xl mb-4">{selectedSong.name}</Text>
+                {/* <Text className="text-2xl mb-4">{selectedSong.name}</Text> */}
   
                 <GestureScrollView
                   horizontal={true}
@@ -236,53 +301,43 @@ const GameScreen = ({ user }) => {
                   contentContainerStyle={{ flexGrow: 1 }}
                 >
 
-                {selectedSong && selectedSong.files && selectedSong.files.map((file, index) => (
-                  <View
-                    key={`${file.name}-${index}_view`}
+            {selectedSong && selectedSong.files && selectedSong.files.map((file, index) => (
+
+              <View className='h-screen w-screen'>
+                  <PanGestureHandler
+                    onGestureEvent={onPanEvent}
+                    ref={panRef}
+                    simultaneousHandlers={[pinchRef]}
+                    enabled={panEnabled}
+                    failOffsetX={[-1000, 1000]}
+                    shouldCancelWhenOutside
                   >
-                    <Text 
-                      key={`${file.name}-${index}_text`}>{file.name}</Text>
-                    {/* <AudioPlayer
-                      key={`${file.name}-${index}_audioplayer`}
-                      url={file.downloadURL} // Pass the download URL directly
-                    /> */}
+                    <Animated.View>
+                      <PinchGestureHandler
+                        ref={pinchRef}
+                        onGestureEvent={onPinchEvent}
+                        simultaneousHandlers={[panRef]}
+                        onHandlerStateChange={handlePinchStateChange}
+                      >
+                        <Animated.Image
+                          source={require('../../public/worthypic.png')}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            transform: [{ scale }, { translateX }, { translateY }]
+                          }}
+                          resizeMode="contain"
+                        />
 
-                    <View  className="flex-1 w-screen h-screen">
+                      </PinchGestureHandler>
+                    </Animated.View>
 
-                    <Pdf
-                      className="w-full h-full flex-1"
-                      key={`${file.name}-${index}_pdf`}
-                      source={pdf_source}
+                  </PanGestureHandler>
+                </View>
 
-                      trustAllCerts={false}
-                      onLoadComplete={(numberOfPages,filePath)=>{
-                          console.log(`Number of pages: ${numberOfPages}`);
-                      }}
-                      onPageChanged={(page,numberOfPages)=>{
-                          console.log(`Current page: ${page}`);
-                      }}
-                      onError={(error)=>{
-                          console.log(error);
-                      }}
-                      onPressLink={(uri)=>{
-                          console.log(`Link pressed: ${uri}`);
-                      }}
-                      />
-                    </View>
-
-
-                    <TouchableOpacity
-                      onPress={() => console.log(file.downloadURL)}
-                      className="mt-4 bg-blue-500 text-white w-10 h-10"
-                    />
-
-                  </View>
-                ))}
+            ))}
                 </GestureScrollView>
 
-                <TouchableOpacity onPress={handleBackToSongs} className="mt-4 bg-blue-500 text-white p-2 rounded">
-                  <Text>Back to Songs</Text>
-                </TouchableOpacity>
               </View>
               </View>
               </GestureHandlerRootView>
