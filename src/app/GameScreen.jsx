@@ -1,79 +1,17 @@
 import React from 'react';
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, StatusBar, Animated, SafeAreaView, StyleSheet, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
-import { GestureHandlerRootView, ScrollView as GestureScrollView } from 'react-native-gesture-handler';
-// import ChatScreen from './ChatScreen';
 import AudioPlayer from './components/AudioPlayer';
 import storage from '@react-native-firebase/storage';
-import { PinchGestureHandler, State, PanGestureHandler } from 'react-native-gesture-handler';
 import { createRef } from 'react';
-import { Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StatusBar, Animated, SafeAreaView, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { GestureHandlerRootView, ScrollView as GestureScrollView, PanGestureHandler, PinchGestureHandler, State } from 'react-native-gesture-handler';
+import { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
+
 
 const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
-
-  /////////////////////
-  //////////
-  ///////////////
-  ///////////////
-
-  const [panEnabled, setPanEnabled] = useState(false);
-
-
-
-  const scale = useRef(new Animated.Value(1)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-
-  const pinchRef = createRef();
-  const panRef = createRef();
-
-  const onPinchEvent = Animated.event([{
-    nativeEvent: { scale }
-  }],
-    { useNativeDriver: true });
-
-  const onPanEvent = Animated.event([{
-    nativeEvent: {
-      translationX: translateX,
-      translationY: translateY
-    }
-  }],
-    { useNativeDriver: true });
-
-  const handlePinchStateChange = ({ nativeEvent }) => {
-    // enabled pan only after pinch-zoom
-    if (nativeEvent.state === State.ACTIVE) {
-      setPanEnabled(true);
-    }
-
-    // when scale < 1, reset scale back to original (1)
-    const nScale = nativeEvent.scale;
-    if (nativeEvent.state === State.END) {
-      if (nScale < 1) {
-        Animated.spring(scale, {
-          toValue: 1,
-          useNativeDriver: true
-        }).start();
-        Animated.spring(translateX, {
-          toValue: 0,
-          useNativeDriver: true
-        }).start();
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true
-        }).start();
-
-        setPanEnabled(false);
-      }
-    }
-  };
-
-  ////////////
-  //////////
-  ////////////
-  ///////////
-
+  const { width: screenWidth } = Dimensions.get('window');
 
     const [musicSelected, setMusicSelected] = useState(false);
     const [songs, setSongs] = useState([]);
@@ -86,12 +24,20 @@ const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
     const [chatScreen, setChatScreen] = useState(false);
     const [profileScreen, setProfileScreen] = useState(false);
     const [choirId, setChoirId] = useState(null);
-    const [zoomScale, setZoomScale] = useState(1);
 
-    function goToChat () {
-      setChatScreen(true);
-    }
+    const scrollViewRef = useRef(null);
+
+    const scrollToNextPage = () => {
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ x: screenWidth, animated: true });
+      }
+    };
   
+    const scrollToPrevPage = () => {
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ x: 0, animated: true });
+      }
+    };
     // handle audio and video
   
     const handleSelectSong = song => {
@@ -225,27 +171,9 @@ const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
       fetchDownloadURLs();
     }, [selectedSong]);
 
-    const pdf_source = {uri:'https://firebasestorage.googleapis.com/v0/b/harmonyhive-b4705.appspot.com/o/TUnrM8z359eWvkV6xnFY%2Fsongs%2Fh45A6eEBGSQ0So6MpfQp%2Fsheet-music.pdf?alt=media&token=c59c4ef9-0bf5-4f1f-8fcc-36ce4f5639a2',cache:true};
-
-    const cherry_array = [
-      '../../public/cherryblossom.png',
-      '../../public/cherryblossom2.png',
-      '../../public/cherryblossom3.png',
-      '../../public/cherryblossom4.png',
-      '../../public/cherryblossom5.png',
-      '../../public/cherryblossom6.png',
-      '../../public/cherryblossom7.png',
-      '../../public/cherryblossom8.png',
-      '../../public/cherryblossom9.png',
-      '../../public/cherryblossom10.png',
-      '../../public/cherryblossom11.png',
-      '../../public/cherryblossom12.png',
-      '../../public/cherryblossom13.png',
-      '../../public/cherryblossom14.png',
-      '../../public/cherryblossom15.png'
-    ];
-
     return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+
       <View className="flex-1">
   
         {/* { chatScreen? ( <ChatScreen 
@@ -279,73 +207,66 @@ const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
         </View>
           
         {!musicSelected && !selectedSong && (
-                  <View className="flex-row p-4 bg-[#FFCE00] flex justify-center border-b border-[#ddb516] ">
-                  <Text className="text-white font-bold">SONG: {songs.length > 0 && currentPage < songs.length ? songs[currentPage].name.toUpperCase() : 'LOADING...'}</Text>
-                </View>
-        ) }
-        {/* Top Bar */}
+        <View className="flex-row p-4 bg-[#FFCE00] flex justify-center border-b border-[#ddb516]">
+          <Text className="text-white font-bold">SONG: {songs.length > 0 && currentPage < songs.length ? songs[currentPage].name.toUpperCase() : 'LOADING...'}</Text>
+        </View>
+      )}
 
-  
           {musicSelected && selectedSong ? (
-              <GestureHandlerRootView className="flex-1">
-
-              <View className="flex-1 bg-black">
-              <View className="w-screen h-screen flex items-center justify-center">
-                {/* <Text className="text-2xl mb-4">{selectedSong.name}</Text> */}
-  
-                <GestureScrollView
-                  horizontal={true}
-                  pagingEnabled={true}
-                  showsHorizontalScrollIndicator={false}
-                  scrollEventThrottle={16}
-                  contentContainerStyle={{ flexGrow: 1 }}
+            <View style={{ flex: 1 }}>
+              {selectedSong && selectedSong.files && (
+                <>
+                <ReactNativeZoomableView
+                  maxZoom={30}
+                  contentWidth={300}
+                  contentHeight={150}
+                  minZoom={1}
+                  initialZoom={1}
+                  bindToBorders={true}
                 >
-
-            {selectedSong && selectedSong.files && selectedSong.files.map((file, index) => (
-
-              <View className='h-screen w-screen'>
-                  <PanGestureHandler
-                    onGestureEvent={onPanEvent}
-                    ref={panRef}
-                    simultaneousHandlers={[pinchRef]}
-                    enabled={panEnabled}
-                    failOffsetX={[-1000, 1000]}
-                    shouldCancelWhenOutside
+                  <ScrollView
+                    ref={scrollViewRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ flexGrow: 1 }}
                   >
-                    <Animated.View>
-                      <PinchGestureHandler
-                        ref={pinchRef}
-                        onGestureEvent={onPinchEvent}
-                        simultaneousHandlers={[panRef]}
-                        onHandlerStateChange={handlePinchStateChange}
-                      >
-                        <Animated.Image
-                          source={require('../../public/worthypic.png')}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            transform: [{ scale }, { translateX }, { translateY }]
-                          }}
-                          resizeMode="contain"
-                        />
+                    <View className="w-screen h-screen">
+                      <Image
+                        source={require('../../public/worthypic.png')}
+                        className="w-full h-full"
+                      />
+                    </View>
+                    <View className="w-screen h-screen">
+                      <Image
+                        source={require('../../public/worthypic.png')}
+                        className="w-full h-full"
+                      />
+                    </View>
+                  </ScrollView>
 
-                      </PinchGestureHandler>
-                    </Animated.View>
 
-                  </PanGestureHandler>
-                </View>
+                </ReactNativeZoomableView>
 
-            ))}
-                </GestureScrollView>
+                  <View style={{ position: 'absolute', bottom: 10, left: 10 }}>
+                  <TouchableOpacity onPress={scrollToPrevPage} style={{ padding: 10, backgroundColor: 'gray', borderRadius: 5 }}>
+                    <Text style={{ color: 'white' }}>Previous</Text>
+                  </TouchableOpacity>
+                  </View>
+                  <View style={{ position: 'absolute', bottom: 10, right: 10 }}>
+                  <TouchableOpacity onPress={scrollToNextPage} style={{ padding: 10, backgroundColor: 'gray', borderRadius: 5 }}>
+                    <Text style={{ color: 'white' }}>Next</Text>
+                  </TouchableOpacity>
+                  </View>
+                </>
 
-              </View>
-              </View>
-              </GestureHandlerRootView>
-        
+              )}
+            </View>
+
           ) : (
   
           <>
-              <GestureHandlerRootView className="flex-1 bg-white">
                 <Text className='bg-white font-thin'>Stats~</Text>
                 <Text className='bg-white font-thin'>Last Opened: May 5th</Text>
                 <GestureScrollView
@@ -385,7 +306,6 @@ const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
                   ))}
   
                 </GestureScrollView>
-              </GestureHandlerRootView>
   
               <View className="flex-row justify-center p-4 -mt-28">
                 {songs.map((_, index) => (
@@ -402,6 +322,8 @@ const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
         )}
   
       </View>
+      </GestureHandlerRootView>
+
     );
    
   }
