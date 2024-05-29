@@ -58,8 +58,9 @@ const happyFaceSvg = `
   </svg>
   `;
 
-function ChatScreen({ onBack, user }) {
-  const [messages, setMessages] = useState([]);
+function ChatScreen({ onBack, user, prefetchMessages }) {
+
+  const [messages, setMessages] = useState(prefetchMessages);
   const [inputText, setInputText] = useState('');
   const [showIcons, setShowIcons] = useState('');
   const flatListRef = useRef(null);
@@ -98,55 +99,87 @@ function ChatScreen({ onBack, user }) {
   };
 
   useEffect(() => {
-    const unsubscribe = firestore()
-      .collection('choirs')
-      .doc(choirId)
-      .collection('messages')
-      .orderBy('createdAt', 'desc')
-      .onSnapshot((snapshot) => {
-        const fetchedMessages = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setMessages(fetchedMessages);
-      });
+    if (choirId) {
+      const unsubscribe = firestore()
+        .collection('choirs')
+        .doc(choirId)
+        .collection('messages')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot((snapshot) => {
+          const fetchedMessages = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setMessages(fetchedMessages);
+        });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    }
   }, [choirId]);
 
   const handleSendMessage = async () => {
     if (inputText.trim() !== '' || selectedFile) {
-      try {
-        const messageData = {
-          message: inputText.trim(),
-          createdAt: firestore.FieldValue.serverTimestamp(),
-          user: {
-            id: user.uid,
-            name: user.displayName || user.email,
-            avatar: user.photoURL || 'https://via.placeholder.com/150',
-          },
-        };
+      // Create a temporary message ID
+      const tempMessageId = Date.now().toString();
   
-        // Send the message first
+      // Create the message object
+      const messageData = {
+        id: tempMessageId, // Use the temporary ID
+        message: inputText.trim(),
+        createdAt: new Date(), // Use the current date and time
+        user: {
+          id: user.uid,
+          name: user.displayName || user.email,
+          avatar: user.photoURL || 'https://via.placeholder.com/150',
+        },
+        temp: true, // Mark this message as temporary
+      };
+  
+      // Update the state with the new message immediately
+      setMessages((prevMessages) => [messageData, ...prevMessages]);
+      setInputText('');
+      setSelectedFile(null);
+  
+      try {
+        // Send the message to Firestore
         const messageRef = await firestore()
           .collection('choirs')
           .doc(choirId)
           .collection('messages')
-          .add(messageData);
+          .add({
+            message: inputText.trim(),
+            createdAt: firestore.FieldValue.serverTimestamp(),
+            user: {
+              id: user.uid,
+              name: user.displayName || user.email,
+              avatar: user.photoURL || 'https://via.placeholder.com/150',
+            },
+          });
   
-        // Upload the file in the background
+        // Update the temporary message ID with the Firestore ID
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.id === tempMessageId
+              ? { ...msg, id: messageRef.id, temp: false }
+              : msg
+          )
+        );
+  
+        // Upload the file if any
         if (selectedFile) {
           uploadFile(selectedFile, messageRef.id);
         }
-  
-        setInputText('');
-        setSelectedFile(null);
       } catch (error) {
         console.log('Error sending message:', error);
-        throw error;
+        // Remove the temporary message if sending fails
+        setMessages((prevMessages) =>
+          prevMessages.filter((msg) => msg.id !== tempMessageId)
+        );
       }
     }
   };
+  
+  
   
   const handleFileUpload = async () => {
     try {
@@ -317,108 +350,104 @@ function ChatScreen({ onBack, user }) {
     }
   };
   
-    const renderItem = ({ item, index }) => {
-      const previousItem = index < messages.length - 1 ? messages[index + 1] : null;
-      const isSameUser = previousItem && item.user.id === previousItem.user.id;
-      const showProfilePicture =
-        !isSameUser ||
-        (previousItem &&
-          item.createdAt &&
-          previousItem.createdAt &&
-          item.createdAt.toDate().getTime() - previousItem.createdAt.toDate().getTime() > 10 * 60 * 1000);
-    
-      const handleReactionPress = (emoji, messageId) => {
-        const userReactions = item.reactions ? item.reactions[user.uid] || [] : [];
-        if (userReactions.includes(emoji)) {
-            // User already reacted with this emoji, so remove the reaction
-            handleRemoveReaction(messageId, emoji);
-        } else {
-            // User hasn't reacted with this emoji, so add the reaction
-            setReactionMessageId(messageId); // Set the reactionMessageId state variable
-            handleEmojiReaction({ emoji }, messageId);
-        }
+  const renderItem = ({ item, index }) => {
+    const previousItem = index < messages.length - 1 ? messages[index + 1] : null;
+    const isSameUser = previousItem && item.user.id === previousItem.user.id;
+    const showProfilePicture =
+      !isSameUser ||
+      (previousItem &&
+        item.createdAt &&
+        previousItem.createdAt &&
+        ((item.createdAt.toDate ? item.createdAt.toDate() : item.createdAt).getTime() -
+          (previousItem.createdAt.toDate ? previousItem.createdAt.toDate() : previousItem.createdAt).getTime() >
+          10 * 60 * 1000));
+  
+    const handleReactionPress = (emoji, messageId) => {
+      const userReactions = item.reactions ? item.reactions[user.uid] || [] : [];
+      if (userReactions.includes(emoji)) {
+        // User already reacted with this emoji, so remove the reaction
+        handleRemoveReaction(messageId, emoji);
+      } else {
+        // User hasn't reacted with this emoji, so add the reaction
+        setReactionMessageId(messageId); // Set the reactionMessageId state variable
+        handleEmojiReaction({ emoji }, messageId);
+      }
     };
-         
-    
-      return (
-        <View className="flex-row items-start px-4">
+  
+    const createdAtDate = item.createdAt ? (item.createdAt.toDate ? item.createdAt.toDate() : item.createdAt) : new Date();
+  
+    return (
+      <View className="flex-row items-start px-4">
+        {showProfilePicture && (
+          <View className="relative">
+            <Image source={{ uri: item.user.avatar }} className="w-9 h-9 rounded-xl" />
+          </View>
+        )}
+        <View className={`rounded-xl w-full ${showProfilePicture ? '' : 'ml-9'}`}>
           {showProfilePicture && (
-            <View className="relative">
-              <Image source={{ uri: item.user.avatar }} className="w-9 h-9 rounded-xl" />
+            <View className="flex-row items-center gap-2 pl-4">
+              <Text className="text-sm font-semibold">{item.user.name}</Text>
+              <Text className="text-xs text-gray-400">
+                {format(createdAtDate, 'hh:mm a')}
+              </Text>
             </View>
           )}
-          <View className={`rounded-xl w-full ${showProfilePicture ? '' : 'ml-9'}`}>
-            {showProfilePicture && (
-              <View className="flex-row items-center gap-2 pl-4">
-                <Text className="text-sm font-semibold">{item.user.name}</Text>
-                <Text className="text-xs text-gray-400">
-                  {item.createdAt?.toDate() ? format(item.createdAt.toDate(), 'hh:mm a') : ''}
-                </Text>
-              </View>
-            )}
-            <TouchableOpacity onLongPress={() => handleNewReaction(item.id)} className="w-full">
-              <Text className="text-base text-gray-800 px-4 pb-2" >{item.message}</Text>
-            </TouchableOpacity>
-            
-            
-            {item.file && (
-          <>
-            {item.file.type.startsWith('image/') ? (
-              <>
-                {loadingImages[item.id] ? (
-                  <View className="w-48 h-48 bg-gray-200 rounded-lg mt-2" />
-                ) : (
-                  <Image
-                    source={{ uri: item.file.url }}
-                    className="w-48 h-48 rounded-lg mt-2"
-                    resizeMode="cover"
-                  />
-                )}
-              </>
-            ) : (
-              <Text className="text-gray-600 px-4 pb-2">{item.file.name}</Text>
-            )}
-          </>
-        )}
-
-
-            <View className="flex-row items-center px-4 pb-2">
-            
-            
-              {Object.entries(
-                Object.entries(item.reactions || {}).reduce((acc, [userId, reaction]) => {
-                  const emojis = Array.isArray(reaction) ? reaction : [reaction];
-                  emojis.forEach(emoji => {
-                    acc[emoji] = acc[emoji] || { count: 0, userIds: [] };
-                    acc[emoji].count++;
-                    if (!acc[emoji].userIds.includes(userId)) {
-                      acc[emoji].userIds.push(userId);
-                    }
-                  });
-                  return acc;
-                }, {})
-              )
-                .sort(([, a], [, b]) => b.count - a.count)
-                .map(([emoji, { userIds, count }]) => (
-                  <TouchableOpacity
-                    key={emoji}
-                    onPress={() => handleReactionPress(emoji, item.id)}
-                    className={`flex-row items-center space-x-1 rounded-full px-2 py-1 ${
-                      userIds.includes(user.uid) ? 'bg-blue-100' : ''
-                    }`}
-                  >
-                    <Text>{emoji}</Text>
-                    {count > 1 && <Text className="text-xs">{count}</Text>}
-                  </TouchableOpacity>
-                ))
-              }
-
-            </View>
+          <TouchableOpacity onLongPress={() => handleNewReaction(item.id)} className="w-full">
+            <Text className={`text-base text-gray-800 px-4 pb-2 ${item.temp ? 'opacity-50' : ''}`} >{item.message}</Text>
+          </TouchableOpacity>
+          {item.file && (
+            <>
+              {item.file.type.startsWith('image/') ? (
+                <>
+                  {loadingImages[item.id] ? (
+                    <View className="w-48 h-48 bg-gray-200 rounded-lg mt-2" />
+                  ) : (
+                    <Image
+                      source={{ uri: item.file.url }}
+                      className="w-48 h-48 rounded-lg mt-2"
+                      resizeMode="cover"
+                    />
+                  )}
+                </>
+              ) : (
+                <Text className="text-gray-600 px-4 pb-2">{item.file.name}</Text>
+              )}
+            </>
+          )}
+          <View className="flex-row items-center px-4 pb-2">
+            {Object.entries(
+              Object.entries(item.reactions || {}).reduce((acc, [userId, reaction]) => {
+                const emojis = Array.isArray(reaction) ? reaction : [reaction];
+                emojis.forEach(emoji => {
+                  acc[emoji] = acc[emoji] || { count: 0, userIds: [] };
+                  acc[emoji].count++;
+                  if (!acc[emoji].userIds.includes(userId)) {
+                    acc[emoji].userIds.push(userId);
+                  }
+                });
+                return acc;
+              }, {})
+            )
+              .sort(([, a], [, b]) => b.count - a.count)
+              .map(([emoji, { userIds, count }]) => (
+                <TouchableOpacity
+                  key={emoji}
+                  onPress={() => handleReactionPress(emoji, item.id)}
+                  className={`flex-row items-center space-x-1 rounded-full px-2 py-1 ${
+                    userIds.includes(user.uid) ? 'bg-blue-100' : ''
+                  }`}
+                >
+                  <Text>{emoji}</Text>
+                  {count > 1 && <Text className="text-xs">{count}</Text>}
+                </TouchableOpacity>
+              ))
+            }
           </View>
         </View>
-      );
-    };
-    
+      </View>
+    );
+  };
+  
     
     
 
@@ -447,8 +476,8 @@ function ChatScreen({ onBack, user }) {
   keyExtractor={(item) => item.id}
   className="flex-1"
   inverted
-  getItemCount={(data) => data.length}
-  getItem={(data, index) => data[index]}
+  getItemCount={(data) => (data ? data.length : 0)}
+  getItem={(data, index) => (data ? data[index] : null)}
 />
 
 

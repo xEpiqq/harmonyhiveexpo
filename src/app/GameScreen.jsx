@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-import { View, Text, TouchableOpacity, Image, StatusBar, Animated, Dimensions, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StatusBar, Animated, Dimensions, FlatList, BackHandler } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
+import { useFocusEffect } from '@react-navigation/native';
+import AudioPlayer from './components/AudioPlayer';
 
 const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
   const { width: screenWidth } = Dimensions.get('window');
 
   const [musicSelected, setMusicSelected] = useState(false);
   const [songs, setSongs] = useState([]);
-  const [currentPage, setCurrentPage] = useState(0);
   const [selectedSong, setSelectedSong] = useState(null);
   const spinValue = useRef(new Animated.Value(0)).current;
   const [choirName, setChoirName] = useState('');
@@ -18,7 +19,9 @@ const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
   const [chatScreen, setChatScreen] = useState(false);
   const [choirId, setChoirId] = useState(null);
   const [lastOpened, setLastOpened] = useState({});
+  const [currentPage, setCurrentPage] = useState(0);
 
+  const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef(null);
 
   const scrollToNextPage = useCallback(() => {
@@ -190,90 +193,158 @@ const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
     </View>
   ), [handleSelectSong, lastOpened, formatDate, spin]);
 
+  const paginationDots = useMemo(() => (
+    songs.map((_, index) => {
+      const inputRange = [(index - 1) * screenWidth, index * screenWidth, (index + 1) * screenWidth];
+      const dotOpacity = scrollX.interpolate({
+        inputRange,
+        outputRange: [0.3, 1, 0.3],
+        extrapolate: 'clamp',
+      });
+      return (
+        <Animated.View
+          key={index}
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: '#7d7d7d',
+            marginHorizontal: 4,
+            opacity: dotOpacity,
+          }}
+        />
+      );
+    })
+  ), [scrollX, songs]);
+
+  const handleBackPress = useCallback(() => {
+    if (musicSelected) {
+      setMusicSelected(false);
+      setSelectedSong(null);
+      setShowBottomNav(true);
+      return true;
+    }
+    return false;
+  }, [musicSelected, setShowBottomNav]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (handleBackPress()) {
+          return true;
+        }
+        return false;
+      };
+
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [handleBackPress])
+  );
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+
+      <View style={{ paddingTop: 30 }}>
+        <StatusBar barStyle="light-content" backgroundColor="#FFCE00" />
+      </View>
+
+
+          {!musicSelected && selectedSong ? (
+            <>
+                <View className="flex-row justify-between px-4 py-3 items-center bg-[#FFCE00]">
+                  <View className="flex-row items-center">
+                    <Image source={require('../../public/honeycomb.png')} className="h-10 w-10" />
+                    <Text className="text-white ml-2">1</Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Text className="text-white mx-2">2356</Text>
+                    <Image source={require('../../public/honeycomb.png')} className="h-6 w-6" />
+                  </View>
+                  <View className="flex-row items-center">
+                    <Text className="text-white mr-2">5</Text>
+                    <Image source={require('../../public/honeycomb.png')} className="h-6 w-6" />
+                  </View>
+                </View>
+            </>
+          ) : null}
+
+
       <View className="flex-1">
         {chatScreen ? (
           <View></View>
         ) : (
           <>
-            <View style={{ paddingTop: 30 }}>
-              <StatusBar barStyle="light-content" backgroundColor="#FFCE00" />
-            </View>
 
-            <View className="flex-row justify-between px-4 py-3 items-center bg-[#FFCE00]">
-              <View className="flex-row items-center">
-                <Image source={require('../../public/honeycomb.png')} className="h-10 w-10" />
-                <Text className="text-white ml-2">1</Text>
-              </View>
-              <View className="flex-row items-center">
-                <Text className="text-white mx-2">2356</Text>
-                <Image source={require('../../public/honeycomb.png')} className="h-6 w-6" />
-              </View>
-              <View className="flex-row items-center">
-                <Text className="text-white mr-2">5</Text>
-                <Image source={require('../../public/honeycomb.png')} className="h-6 w-6" />
-              </View>
-            </View>
-            {!musicSelected && !selectedSong && (
-              <View className="flex-row p-4 bg-[#FFCE00] flex justify-center border-b border-[#ddb516]">
-                <Text className="text-white font-bold">{choirName.toUpperCase()}</Text>
-              </View>
-            )}
+
 
             {musicSelected && selectedSong ? (
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1 }} className='bg-white'>
                 {selectedSong && selectedSong.files && (
                   <>
-                    <ReactNativeZoomableView
-                      maxZoom={30}
-                      contentWidth={300}
-                      contentHeight={150}
-                      minZoom={1}
-                      initialZoom={1}
-                      bindToBorders={true}
-                    >
-                      <FlatList
-                        ref={scrollViewRef}
-                        horizontal
-                        pagingEnabled
-                        showsHorizontalScrollIndicator={false}
-                        data={selectedSong.files}
-                        renderItem={({ item }) => (
-                          // <View className="w-screen h-screen">
-                          //   <Image
-                          //     source={{ uri: item.downloadURL }}
-                          //     className="w-full h-full"
-                          //   />
-                          // </View>
-                        
-                          <View className="w-screen h-screen">
-                          <Image
-                            source={require('../../public/worthypic.png')}
-                            className="w-full h-full"
-                          />
-                        </View>
-
-                        )}
-                        keyExtractor={(item, index) => index.toString()}
+                    <TouchableOpacity onPress={handleBackPress} style={{ position: 'absolute', top: 20, left: 10, zIndex: 1 }}>
+                      <Image source={require('../../public/grayarrow.png')} style={{ width: 20, height: 20, opacity: 0.5}} />
+                    </TouchableOpacity>
+                    <View className='-mt-16'>
+                    <FlatList
+                      ref={scrollViewRef}
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      data={[...Array(17).keys()]} // Dummy data array to render 17 items
+                      renderItem={({ index }) => {
+                        const images = [
+                          require('../../public/Is He Worthy-01.png'),
+                          require('../../public/Is He Worthy-02.png'),
+                          require('../../public/Is He Worthy-03.png'),
+                          require('../../public/Is He Worthy-04.png'),
+                          require('../../public/Is He Worthy-05.png'),
+                          require('../../public/Is He Worthy-06.png'),
+                          require('../../public/Is He Worthy-07.png'),
+                          require('../../public/Is He Worthy-08.png'),
+                          require('../../public/Is He Worthy-09.png'),
+                          require('../../public/Is He Worthy-10.png'),
+                          require('../../public/Is He Worthy-11.png'),
+                          require('../../public/Is He Worthy-12.png'),
+                          require('../../public/Is He Worthy-13.png'),
+                          require('../../public/Is He Worthy-14.png'),
+                          require('../../public/Is He Worthy-15.png'),
+                          require('../../public/Is He Worthy-16.png'),
+                          require('../../public/Is He Worthy-17.png'),
+                          require('../../public/Is He Worthy-18.png'),
+                          require('../../public/Is He Worthy-19.png'),
+                        ];
+                        return (
+                          <View style={{ width: screenWidth, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                            <Image
+                              source={images[index]}
+                              style={{ width: screenWidth, height: '100%' }}
+                              resizeMode="contain"
+                            />
+                          </View>
+                        );
+                      }}
+                      keyExtractor={(item, index) => index.toString()}
+                      onScroll={Animated.event(
+                        [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                        { useNativeDriver: false }
+                      )}
+                    />
+                    </View>
+                      
+                    <View className='w-full h-20 flex justify-center bg-[#FFCE00] absolute b-0 bottom-0'>
+                      <AudioPlayer
+                        // key={`${file.name}-${index}_audioplayer`}
+                        url="https://firebasestorage.googleapis.com/v0/b/harmonyhive-b4705.appspot.com/o/TUnrM8z359eWvkV6xnFY%2Fsongs%2F1rmeWWmcyiVwo0j4q399%2Faudio.mp3?alt=media&token=e9c82cee-2f73-4732-8eac-254737b0f16b" // Pass the download URL directly
                       />
-                    </ReactNativeZoomableView>
-                    <View style={{ position: 'absolute', bottom: 10, left: 10 }}>
-                      <TouchableOpacity onPress={scrollToPrevPage} style={{ padding: 10, backgroundColor: 'gray', borderRadius: 5 }}>
-                        <Text style={{ color: 'white' }}>Previous</Text>
-                      </TouchableOpacity>
                     </View>
-                    <View style={{ position: 'absolute', bottom: 10, right: 10 }}>
-                      <TouchableOpacity onPress={scrollToNextPage} style={{ padding: 10, backgroundColor: 'gray', borderRadius: 5 }}>
-                        <Text style={{ color: 'white' }}>Next</Text>
-                      </TouchableOpacity>
-                    </View>
+
                   </>
                 )}
               </View>
             ) : (
               <>
-                <Text className='bg-white font-thin'>Stats~</Text>
+                <Text className='bg-white font-thin'>{choirName}</Text>
                 <FlatList
                   horizontal
                   pagingEnabled
@@ -284,14 +355,14 @@ const GameScreen = ({ user, setIsLoading, setShowBottomNav }) => {
                   contentContainerStyle={{ flexGrow: 1 }}
                   onViewableItemsChanged={onViewableItemsChanged}
                   viewabilityConfig={viewabilityConfig}
+                  onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                    { useNativeDriver: false }
+                  )}
                 />
-                <View className="flex-row justify-center p-4 -mt-28">
-                  {songs.map((_, index) => (
-                    <View
-                      key={index}
-                      className={`h-2 w-2 rounded-full m-1 ${currentPage === index ? 'bg-gray-500' : 'bg-gray-300'}`}
-                    />
-                  ))}
+
+                <View className="flex-row justify-center p-4 bg-white">
+                  {paginationDots}
                 </View>
               </>
             )}

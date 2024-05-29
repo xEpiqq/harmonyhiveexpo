@@ -117,8 +117,8 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   selectedTabIcon: {
-    backgroundColor: '#cceeff', // Customize this color to match the blue background
-    borderColor: '#99ccff', // Slightly darker shade for the border
+    backgroundColor: '#ffeb99', // Customize this color to match the blue background
+    borderColor: '#FFCE00', // Slightly darker shade for the border
     borderWidth: 2,
   },
 });
