@@ -16,6 +16,7 @@
     "scheme": "acme",
     "userInterfaceStyle": "automatic",
     "orientation": "default",
+    "icon": "./public/icon.png",
     "web": {
       "output": "static",
       "bundler": "metro"
@@ -49,3 +50,5 @@
     }
   }
 }
+
+
